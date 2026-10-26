@@ -1,0 +1,49 @@
+erDiagram
+    fact_lca }o--|| dim_employer : employer_id
+    fact_lca }o--|| dim_occupation : occupation_id
+    fact_lca }o--|| dim_location : location_id
+    fact_lca }o--|| dim_date : date_id
+    fact_lca {
+        text case_number PK
+        int employer_id FK
+        int occupation_id FK
+        int location_id FK
+        int date_id FK
+        text job_title
+        text pw_level
+        bool full_time
+        bool certified
+        bool withdrawn
+        bool denied
+        real total_positions
+        real new_hire_positions
+        real continued_positions
+        real wage_annual
+        real pw_annual
+    }
+    dim_employer {
+        int employer_id PK
+        text employer_key
+        text employer_name
+        text hq_state
+        text naics2
+        bool h1b_dependent
+        bool willful_violator
+    }
+    dim_occupation {
+        int occupation_id PK
+        text soc_code
+        text soc_title
+        text soc_major
+    }
+    dim_location {
+        int location_id PK
+        text state
+    }
+    dim_date {
+        int date_id PK
+        date date
+        int year
+        int month
+        text fiscal_quarter
+    }

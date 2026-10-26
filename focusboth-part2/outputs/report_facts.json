@@ -1,0 +1,21 @@
+{
+  "boards": 15,
+  "q1_cases": "83,120",
+  "n_soc": "497",
+  "n_states": 55,
+  "top10_share": "13.8%",
+  "single_filers": "28,231",
+  "computer_share": "60.6%",
+  "newhire_share": "49.3%",
+  "median_wage": "$126,256",
+  "q3_rows": "228,103",
+  "q3_newhire": "64.7%",
+  "cert_rate": "91.4%",
+  "employers_ge10": "6,945",
+  "swe_l1_median": "$108,000",
+  "swe_l4_median": "$178,602",
+  "top_employers": "Amazon.com Services LLC (16,502), Google LLC (8,280), COGNIZANT TECHNOLOGY SOLUTIONS US CORP (8,277)",
+  "top_states": "CA (103,204), TX (81,363), NY (45,212)",
+  "top_occs": "Software Developers (162,907), Computer Systems Engineers/Architects (41,794), Data Scientists (34,622)",
+  "emp_json": "20,841"
+}

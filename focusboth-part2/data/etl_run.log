@@ -1,0 +1,24 @@
+extract  LCA_Disclosure_Data_FY2025_Q4.xlsx
+extract  LCA_Disclosure_Data_FY2026_Q3.xlsx
+{
+  "rows_raw": 556076,
+  "rows_after_dedup": 554190,
+  "rows_h1b": 539976,
+  "rows_with_decision_date": 539976,
+  "wages_nulled_out_of_range": 830,
+  "rows_clean": 539975,
+  "employers": 60252,
+  "quarters": [
+    "FY2025Q4",
+    "FY2026Q1",
+    "FY2026Q2",
+    "FY2026Q3"
+  ],
+  "star_rows": {
+    "dim_employer": 60252,
+    "dim_occupation": 497,
+    "dim_location": 55,
+    "dim_date": 340,
+    "fact_lca": 539975
+  }
+}

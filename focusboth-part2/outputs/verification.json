@@ -1,0 +1,6 @@
+{
+  "ts_tests": "24 / 24 pass",
+  "parity": "200 / 200 identical predictions",
+  "build_status": "Pass (ESLint clean, tsc clean, next build succeeds)",
+  "repo_url": "(GitHub link added at publication)"
+}

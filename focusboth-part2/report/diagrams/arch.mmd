@@ -1,0 +1,26 @@
+flowchart LR
+  subgraph SRC["Data sources"]
+    DOL["DOL OFLC LCA<br/>disclosure files"]
+    GH["Greenhouse job boards<br/>(15 employers, live)"]
+    DP["Devpost + confs.tech<br/>(events, live)"]
+    U["Student entries<br/>(visa dates, goals)"]
+  end
+  subgraph ETL["Python analytics"]
+    E["Extract<br/>32 columns"] --> T["Transform<br/>clean, standardize,<br/>annualize"] --> L["Load<br/>star schema"]
+    L --> M["Models M1, M2, M3<br/>temporal validation"]
+    M --> X["Export<br/>JSON scores + weights"]
+  end
+  subgraph CLOUD["Cloud"]
+    PG[("PostgreSQL<br/>star schema")]
+    APP["FocusBoth<br/>Next.js server"]
+  end
+  DOL --> E
+  L --> PG
+  X --> APP
+  PG --> APP
+  GH --> APP
+  DP --> APP
+  U --> APP
+  APP --> R["Rules engine<br/>decides pass/fail"]
+  APP --> B["Browser<br/>6 screens"]
+  R --> B

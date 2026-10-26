@@ -1,0 +1,143 @@
+rows=539,975 quarters=['FY2025Q4', 'FY2026Q1', 'FY2026Q2', 'FY2026Q3']
+M1 done
+M2 done
+M3 done
+{
+  "M1_sponsorship": {
+    "panel_rows": 88391,
+    "train_rows": 50915,
+    "test_rows": 37476,
+    "test_quarter_index": 8105,
+    "positive_rate_train": 0.23258371796130806,
+    "positive_rate_test": 0.38315188387234494,
+    "results": [
+      {
+        "model": "B0 Persistence (filed new-hire LCA this quarter)",
+        "roc_auc": 0.6330436591909581,
+        "pr_auc": 0.48165129202028345,
+        "precision_at_top1pct(k=375)": 0.624
+      },
+      {
+        "model": "B1 Frequency (historical new-hire filings)",
+        "roc_auc": 0.7024595688116158,
+        "pr_auc": 0.6220914753120335,
+        "precision_at_top1pct(k=375)": 0.9626666666666667
+      },
+      {
+        "model": "Logistic regression",
+        "roc_auc": 0.7701968105074444,
+        "pr_auc": 0.7242703635995322,
+        "precision_at_top1pct(k=375)": 0.984,
+        "brier": 0.1838198971732019
+      },
+      {
+        "model": "XGBoost",
+        "roc_auc": 0.7732112469545915,
+        "pr_auc": 0.7280846223233802,
+        "precision_at_top1pct(k=375)": 0.9946666666666667,
+        "brier": 0.20223627984523773
+      }
+    ],
+    "xgb_importance": {
+      "filings_hist": 0.2570733428001404,
+      "new_filings_hist": 0.11384675651788712,
+      "n_soc_hist": 0.06397343426942825,
+      "quarters_active": 0.059034474194049835,
+      "filings_t": 0.0455540232360363,
+      "h1b_dependent": 0.04554453492164612,
+      "new_filings_t": 0.03501909598708153,
+      "n_states_hist": 0.0280426274985075,
+      "recency_q": 0.018101070076227188,
+      "computer_share_hist": 0.017344273626804352,
+      "naics2=naics2_54": 0.01639089174568653,
+      "naics2=naics2_61": 0.016222184523940086,
+      "naics2=naics2_42": 0.013548268005251884,
+      "cert_rate_hist": 0.012891096994280815,
+      "naics2=naics2_32": 0.012657738290727139
+    },
+    "lr_coef": {
+      "filings_tm1": -0.17596774917995506,
+      "wage_ratio_hist": -0.012414518938847208,
+      "level1_share_hist": -0.006121151317515775,
+      "recency_q": 0.013812690184186634,
+      "withdraw_rate_hist": 0.023735443532389523,
+      "cert_rate_hist": 0.05114127763815478,
+      "filings_t": 0.06013117809967504,
+      "n_states_hist": 0.10043536539598098,
+      "computer_share_hist": 0.11366031599738645,
+      "new_filings_t": 0.1181630331285655,
+      "median_wage_hist": 0.161003095958802,
+      "h1b_dependent": 0.18870295966440537,
+      "quarters_active": 0.19831209537783548,
+      "filings_hist": 0.2744535506143255,
+      "n_soc_hist": 0.36325458891135537,
+      "new_filings_hist": 0.5554733316938428
+    }
+  },
+  "M2_title_to_soc": {
+    "n_classes": 60,
+    "row_coverage_of_top_classes": 0.9015491457937868,
+    "train_rows": 283255,
+    "test_rows": 203559,
+    "test_titles_seen_in_train": 0.7985105055536724,
+    "results": [
+      {
+        "model": "Majority class",
+        "top1_accuracy": 0.3037399476318905,
+        "macro_f1": 0.007765862309775373,
+        "weighted_f1": 0.14152815667725865,
+        "top3_accuracy": null
+      },
+      {
+        "model": "Exact-title lookup",
+        "top1_accuracy": 0.62976827357179,
+        "macro_f1": 0.5343994585466301,
+        "weighted_f1": 0.6117623348896688,
+        "top3_accuracy": null
+      },
+      {
+        "model": "TF-IDF + logistic regression",
+        "top1_accuracy": 0.7039580662117617,
+        "macro_f1": 0.6074765328269225,
+        "weighted_f1": 0.6934964600565519,
+        "top3_accuracy": 0.8699983788483928
+      }
+    ],
+    "accuracy_on_unseen_titles": {
+      "Exact-title lookup": 0.1504571498232354,
+      "TF-IDF + logistic regression": 0.5184688528587102
+    }
+  },
+  "M3_wage": {
+    "train_rows": 280385,
+    "test_rows": 212634,
+    "results": [
+      {
+        "model": "Median wage by SOC",
+        "mae_usd": 33798.18886054664,
+        "mape": 0.2640213011857601,
+        "r2_log": 0.35570256914524656
+      },
+      {
+        "model": "Ridge regression",
+        "mae_usd": 22453.19278790692,
+        "mape": 0.1616841986697874,
+        "r2_log": 0.6868448308669741
+      },
+      {
+        "model": "XGBoost",
+        "mae_usd": 20632.41579741848,
+        "mape": 0.14766073266780252,
+        "r2_log": 0.7304213508639364
+      }
+    ],
+    "importance_by_feature": {
+      "soc_code": 0.8795963525772095,
+      "worksite_state": 0.05735994130373001,
+      "pw_level": 0.0372907817363739,
+      "naics2": 0.02498493529856205,
+      "full_time": 0.0007680128910578787
+    }
+  }
+}
+EXIT 0
