@@ -102,8 +102,12 @@ export function validateCitations(text: string, hits: Map<string, Hit>): { text:
   return { text: clean.replace(/\s+([.,;])/g, "$1").trim(), citations: used };
 }
 
-export async function askAgent(question: string, ctx: AgentContext, opts: { apiKey: string; model?: string; fetchImpl?: typeof fetch }): Promise<AgentResult> {
+export async function askAgent(question: string, ctx: AgentContext, opts: { apiKey: string; model?: string; fetchImpl?: typeof fetch; timeoutMs?: number }): Promise<AgentResult> {
   const model = opts.model ?? "gemini-2.5-flash";
+  const timeoutMs = opts.timeoutMs ?? 15_000;
+  // Gemini 2.5 models "think" by default, which adds seconds per tool step; this task is
+  // retrieval plus short synthesis, so thinking is switched off where the model allows it.
+  const thinking = /^gemini-2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {};
   const f = opts.fetchImpl ?? fetch;
   const contents: Content[] = [{ role: "user", parts: [{ text: question.slice(0, 600) }] }];
   const tools: ToolTrace[] = [];
@@ -116,8 +120,8 @@ export async function askAgent(question: string, ctx: AgentContext, opts: { apiK
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": opts.apiKey },
       body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents, tools: TOOLS,
-        generationConfig: { temperature: 0.1, maxOutputTokens: 700 } }),
-      signal: AbortSignal.timeout(30_000),
+        generationConfig: { temperature: 0.1, maxOutputTokens: 700, ...thinking } }),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const data = (await res.json()) as { candidates?: Array<{ content?: Content }> };
