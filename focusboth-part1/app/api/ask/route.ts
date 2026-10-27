@@ -4,13 +4,22 @@ import type { Job, VisaProfile } from "@/lib/types";
 
 export const maxDuration = 60;
 
-/** Gemini model names to try in order. A retired name (404) falls through to the next one. */
+/**
+ * Gemini model names to try in order. Fast, non-thinking models come first; GEMINI_MODEL (if set)
+ * is an extra fallback. A retired name (404), a busy model (503 overloaded, 429 rate limit) or a
+ * timeout falls through to the next one, so one slow or overloaded model never takes the
+ * assistant down.
+ */
 function candidateModels(): string[] {
-  const list = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"]
+  const list = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", process.env.GEMINI_MODEL,
+    "gemini-flash-lite-latest", "gemini-flash-latest"]
     .map((m) => (m ?? "").trim())
     .filter(Boolean);
   return [...new Set(list)];
 }
+
+const RETRYABLE = /Gemini (404|429|500|503)|not found|not supported|UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand|timeout|timed out|aborted/i;
+const BUDGET_MS = 50_000; // stay inside Vercel's 60 s function limit
 
 /** POST /api/ask  { question, profile, jobs } -> grounded answer with citations and a tool trace. */
 export async function POST(request: Request) {
@@ -35,16 +44,20 @@ export async function POST(request: Request) {
   const ctx = { profile: body.profile, jobs: Array.isArray(body.jobs) ? body.jobs : [] };
   const tried: string[] = [];
   let lastError = "";
+  const start = Date.now();
   for (const model of candidateModels()) {
+    const left = BUDGET_MS - (Date.now() - start);
+    if (left < 5_000) break;
     tried.push(model);
     try {
-      const result = await askAgent(question, ctx, { apiKey, model });
+      const result = await askAgent(question, ctx, { apiKey, model, timeoutMs: Math.min(15_000, left) });
       return NextResponse.json(result);
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
       console.error(`ask failed with ${model}:`, lastError);
-      // Only a missing/retired model is worth retrying with the next name.
-      if (!/Gemini 404|not found|not supported/i.test(lastError)) break;
+      // Missing, busy or slow models are worth trying the next name; anything else
+      // (bad key, bad request) would fail the same way on every model.
+      if (!RETRYABLE.test(lastError)) break;
     }
   }
   return NextResponse.json(
