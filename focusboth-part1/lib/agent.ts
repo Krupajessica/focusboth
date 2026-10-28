@@ -93,11 +93,15 @@ export function runTool(name: string, args: Record<string, unknown>, ctx: AgentC
 /** Removes citation tags the model was never given, and returns the valid citations in order. */
 export function validateCitations(text: string, hits: Map<string, Hit>): { text: string; citations: Citation[] } {
   const used: Citation[] = [];
-  const clean = text.replace(/\[(S\d+)\]/g, (m, tag: string) => {
-    const h = hits.get(tag);
-    if (!h) return "";
-    if (!used.find((c) => c.tag === tag)) used.push({ tag, url: h.url, title: h.title });
-    return m;
+  // Models write single tags [S1] and grouped tags [S1, S2] / [S1; S2]; both are checked tag by tag.
+  const clean = text.replace(/\[\s*(S\d+(?:\s*[,;]\s*S\d+)*)\s*\]/g, (_m, group: string) => {
+    const valid = group.split(/\s*[,;]\s*/).filter((tag) => {
+      const h = hits.get(tag);
+      if (!h) return false;
+      if (!used.find((c) => c.tag === tag)) used.push({ tag, url: h.url, title: h.title });
+      return true;
+    });
+    return valid.map((tag) => `[${tag}]`).join("");
   });
   return { text: clean.replace(/\s+([.,;])/g, "$1").trim(), citations: used };
 }
