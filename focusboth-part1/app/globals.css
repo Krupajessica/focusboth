@@ -123,7 +123,8 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th { text-align: left; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 0 12px 10px; }
 td { padding: 13px 12px; border-top: 1px solid var(--line); white-space: nowrap; }
 td strong { display: block; font-size: 12px; }
-td small { color: var(--muted); }
+td small { color: var(--muted); display: block; }
+.table-scroll td:first-child, .table-scroll td:nth-child(2) { white-space: normal; min-width: 220px; max-width: 340px; }
 .filter-row { display: flex; gap: 7px; flex-wrap: wrap; }
 .filter { border: 1px solid var(--line); background: white; padding: 7px 11px; border-radius: 999px; font-size: 11px; cursor: pointer; color: var(--muted); }
 .filter.active { background: var(--ink); color: white; border-color: var(--ink); }
