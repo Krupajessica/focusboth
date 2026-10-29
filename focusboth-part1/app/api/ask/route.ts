@@ -5,7 +5,7 @@ import type { Job, VisaProfile } from "@/lib/types";
 export const maxDuration = 60;
 
 /**
- * Language models to try, in order. Groq (Llama 3.3 70B and gpt-oss-120b, fast and free, OpenAI-
+ * Language models to try, in order. Groq (gpt-oss-120b, then Llama 3.3 70B; fast and free, OpenAI-
  * compatible tool calling) comes first when GROQ_API_KEY is set; Gemini is the fallback. A retired
  * model (404), a busy one (503, 429) or a timeout falls through to the next, so one provider's bad
  * day never takes the assistant down. Every model gets the same prompt, tools and citation guard.
@@ -16,7 +16,7 @@ function candidates(question: string, ctx: Parameters<typeof askAgent>[1]): Cand
   const out: Candidate[] = [];
   const groqKey = process.env.GROQ_API_KEY?.trim();
   if (groqKey) {
-    for (const model of ["llama-3.3-70b-versatile", "openai/gpt-oss-120b"]) {
+    for (const model of ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"]) {
       out.push({ name: `groq:${model}`, timeoutMs: 20_000,
         run: (t) => askAgentOpenAI(question, ctx, { apiKey: groqKey, model, baseUrl: "https://api.groq.com/openai/v1", label: "Groq", timeoutMs: t }) });
     }
