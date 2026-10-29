@@ -77,7 +77,7 @@ export default function AskPage() {
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <Status tone={t.result.grounded ? "good" : "warn"}>{t.result.grounded ? "Cited official sources" : "No policy citation"}</Status>
               </div>
-              <p className="brief" style={{ whiteSpace: "pre-wrap", fontSize: 16 }}>{t.result.answer}</p>
+              <p className="answer">{t.result.answer}</p>
               {t.result.citations.length > 0 && (
                 <div style={{ marginTop: 12 }}>
                   <div className="eyebrow">Sources</div>
