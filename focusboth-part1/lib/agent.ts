@@ -106,6 +106,29 @@ export function validateCitations(text: string, hits: Map<string, Hit>): { text:
   return { text: clean.replace(/\s+([.,;])/g, "$1").trim(), citations: used };
 }
 
+type Finisher = { tools: ToolTrace[]; hits: Map<string, Hit>; policySearched: boolean; policyFound: boolean; model: string };
+
+/** Turns the model's final text into the answer: NO_SOURCE fallback, then the citation guard. */
+function finish(raw: string, st: Finisher): AgentResult {
+  const { tools, hits, model } = st;
+  if (raw === "NO_SOURCE" || raw.startsWith("NO_SOURCE") || (st.policySearched && !st.policyFound && /\b(OPT|STEM|EAD|H-1B|cap-gap|unemploy)/i.test(raw) && !/DSO/.test(raw))) {
+    return { answer: NO_SOURCE_ANSWER, citations: [], tools, model, grounded: false };
+  }
+  const { text, citations } = validateCitations(raw, hits);
+  return { answer: text || NO_SOURCE_ANSWER, citations, tools, model, grounded: citations.length > 0 };
+}
+
+/** Runs one tool call and records it (shared by both providers). */
+function callTool(name: string, args: Record<string, unknown>, ctx: AgentContext, st: Finisher) {
+  const out = runTool(name, args, ctx, st.hits);
+  if (name === "search_policy") {
+    st.policySearched = true;
+    if ((out.result as { passages: unknown[] }).passages.length) st.policyFound = true;
+  }
+  st.tools.push({ name, args, summary: out.summary });
+  return out.result;
+}
+
 export async function askAgent(question: string, ctx: AgentContext, opts: { apiKey: string; model?: string; fetchImpl?: typeof fetch; timeoutMs?: number }): Promise<AgentResult> {
   const model = opts.model ?? "gemini-2.5-flash";
   const timeoutMs = opts.timeoutMs ?? 15_000;
@@ -114,10 +137,7 @@ export async function askAgent(question: string, ctx: AgentContext, opts: { apiK
   const thinking = /^gemini-2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {};
   const f = opts.fetchImpl ?? fetch;
   const contents: Content[] = [{ role: "user", parts: [{ text: question.slice(0, 600) }] }];
-  const tools: ToolTrace[] = [];
-  const hits = new Map<string, Hit>();
-  let policySearched = false;
-  let policyFound = false;
+  const st: Finisher = { tools: [], hits: new Map<string, Hit>(), policySearched: false, policyFound: false, model };
 
   for (let step = 0; step < 5; step++) {
     const res = await f(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -129,30 +149,65 @@ export async function askAgent(question: string, ctx: AgentContext, opts: { apiK
     });
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const data = (await res.json()) as { candidates?: Array<{ content?: Content }> };
-    const content = data.candidates?.[0]?.content;
-    const parts = content?.parts ?? [];
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
     const calls = parts.filter((p) => p.functionCall);
-    if (!calls.length) {
-      const raw = parts.map((p) => p.text ?? "").join("").trim();
-      if (raw === "NO_SOURCE" || raw.startsWith("NO_SOURCE") || (policySearched && !policyFound && /\b(OPT|STEM|EAD|H-1B|cap-gap|unemploy)/i.test(raw) && !/DSO/.test(raw))) {
-        return { answer: NO_SOURCE_ANSWER, citations: [], tools, model, grounded: false };
-      }
-      const { text, citations } = validateCitations(raw, hits);
-      return { answer: text || NO_SOURCE_ANSWER, citations, tools, model, grounded: citations.length > 0 };
-    }
+    if (!calls.length) return finish(parts.map((p) => p.text ?? "").join("").trim(), st);
     contents.push({ role: "model", parts });
-    const responses: Part[] = [];
-    for (const c of calls) {
+    const responses: Part[] = calls.map((c) => {
       const { name, args } = c.functionCall!;
-      const out = runTool(name, args ?? {}, ctx, hits);
-      if (name === "search_policy") {
-        policySearched = true;
-        if ((out.result as { passages: unknown[] }).passages.length) policyFound = true;
-      }
-      tools.push({ name, args: args ?? {}, summary: out.summary });
-      responses.push({ functionResponse: { name, response: out.result } });
-    }
+      return { functionResponse: { name, response: callTool(name, args ?? {}, ctx, st) } };
+    });
     contents.push({ role: "user", parts: responses });
   }
-  return { answer: NO_SOURCE_ANSWER, citations: [], tools, model, grounded: false };
+  return { answer: NO_SOURCE_ANSWER, citations: [], tools: st.tools, model, grounded: false };
+}
+
+/** Gemini's schema types are upper case ("OBJECT"); OpenAI-style JSON Schema wants lower case. */
+function toJsonSchema(x: unknown): unknown {
+  if (Array.isArray(x)) return x.map(toJsonSchema);
+  if (x && typeof x === "object") {
+    return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, k === "type" && typeof v === "string" ? v.toLowerCase() : toJsonSchema(v)]));
+  }
+  return x;
+}
+const OPENAI_TOOLS = TOOLS[0].functionDeclarations.map((d) => ({
+  type: "function" as const,
+  function: { name: d.name, description: d.description, parameters: toJsonSchema(d.parameters) },
+}));
+
+type ChatMsg = { role: "system" | "user" | "assistant" | "tool"; content: string | null; tool_calls?: Array<{ id: string; type: "function"; function: { name: string; arguments: string } }>; tool_call_id?: string };
+
+/**
+ * The same agent over any OpenAI-compatible chat API (used with Groq). Same system prompt, same
+ * four tools, same citation guard; only the wire format differs from Gemini's.
+ */
+export async function askAgentOpenAI(question: string, ctx: AgentContext,
+  opts: { apiKey: string; model: string; baseUrl: string; label?: string; fetchImpl?: typeof fetch; timeoutMs?: number }): Promise<AgentResult> {
+  const f = opts.fetchImpl ?? fetch;
+  const model = opts.model;
+  const messages: ChatMsg[] = [{ role: "system", content: SYSTEM }, { role: "user", content: question.slice(0, 600) }];
+  const st: Finisher = { tools: [], hits: new Map<string, Hit>(), policySearched: false, policyFound: false, model };
+  const label = opts.label ?? "LLM";
+
+  for (let step = 0; step < 5; step++) {
+    const res = await f(`${opts.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${opts.apiKey}` },
+      body: JSON.stringify({ model, messages, tools: OPENAI_TOOLS, tool_choice: "auto", temperature: 0.1, max_tokens: 700 }),
+      signal: AbortSignal.timeout(opts.timeoutMs ?? 20_000),
+    });
+    if (!res.ok) throw new Error(`${label} ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const data = (await res.json()) as { choices?: Array<{ message?: ChatMsg }> };
+    const msg = data.choices?.[0]?.message;
+    const calls = msg?.tool_calls ?? [];
+    if (!calls.length) return finish((msg?.content ?? "").trim(), st);
+    messages.push({ role: "assistant", content: msg?.content ?? null, tool_calls: calls });
+    for (const c of calls) {
+      let args: Record<string, unknown> = {};
+      try { args = c.function.arguments ? JSON.parse(c.function.arguments) : {}; } catch { args = {}; }
+      const result = callTool(c.function.name, args, ctx, st);
+      messages.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(result) });
+    }
+  }
+  return { answer: NO_SOURCE_ANSWER, citations: [], tools: st.tools, model, grounded: false };
 }
