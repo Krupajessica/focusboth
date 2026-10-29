@@ -21,6 +21,7 @@ const SYN: Record<string, string[]> = {
   stem: ["stem"], extension: ["extension"], ead: ["employment", "authorization", "document"],
   report: ["reporting", "validation"], reporting: ["validation"], h1b: ["h", "1b", "cap"],
   "cap-gap": ["cap", "gap"], everify: ["e", "verify"], "e-verify": ["e", "verify"], i983: ["i", "983", "training", "plan"],
+  grace: ["departure", "depart", "preparation"], leave: ["depart"],
   travel: ["travel", "reenter", "reentry"], volunteer: ["volunteer", "unpaid"], startup: ["self", "employed", "business"],
 };
 
