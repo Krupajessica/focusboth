@@ -93,6 +93,11 @@ export function runTool(name: string, args: Record<string, unknown>, ctx: AgentC
 /** Removes citation tags the model was never given, and returns the valid citations in order. */
 export function validateCitations(text: string, hits: Map<string, Hit>): { text: string; citations: Citation[] } {
   const used: Citation[] = [];
+  // Some models (gpt-oss) cite with lenticular brackets, e.g. 【S1】 or 【S1†L3-L5】: normalize to [S1].
+  text = text.replace(/【([^】]*)】/g, (_m, inner: string) => {
+    const tags = inner.match(/S\d+/g);
+    return tags ? `[${tags.join(", ")}]` : "";
+  });
   // Models write single tags [S1] and grouped tags [S1, S2] / [S1; S2]; both are checked tag by tag.
   const clean = text.replace(/\[\s*(S\d+(?:\s*[,;]\s*S\d+)*)\s*\]/g, (_m, group: string) => {
     const valid = group.split(/\s*[,;]\s*/).filter((tag) => {
