@@ -91,6 +91,7 @@ h3 { margin: 0; font-size: 15px; }
 .alert { display: flex; gap: 12px; padding: 14px 16px; border-radius: 13px; background: var(--amber-soft); color: #6e460f; font-size: 13px; line-height: 1.45; }
 .alert a { color: inherit; font-weight: 800; }
 .brief { font-family: Georgia, serif; font-size: 18px; line-height: 1.65; color: #dbe6e1; margin: 0 0 18px; }
+.answer { font-size: 16px; line-height: 1.6; color: var(--ink); margin: 0; white-space: pre-wrap; }
 .source { font-size: 10px; color: #9db5aa; border-top: 1px solid rgba(255,255,255,.12); padding-top: 12px; }
 .list { display: grid; gap: 13px; }
 .list-row { display: flex; align-items: center; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid var(--line); }
