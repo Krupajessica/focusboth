@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useCompassStore } from "@/components/compass-store";
-import { PageHead, Progress, Status } from "@/components/ui";
+import { Status } from "@/components/ui";
 import { evaluatePath } from "@/lib/compass-engine";
 
 export default function PathsPage() {
@@ -17,66 +17,51 @@ export default function PathsPage() {
 
   return (
     <div className="content">
-      <PageHead
-        eyebrow="Path navigator"
-        title="Test a decision against the clock."
-        description="Compare realistic career scenarios using the same dates and explicit rules — before asking AI to explain the result."
-        action={<Status>{bestFeasible ? `${bestFeasible.path.name} leads` : "No feasible path"}</Status>}
-      />
+      <div className="visa-head">
+        <div>
+          <div className="eyebrow">Path navigator</div>
+          <h1>{data.paths.length === 3 ? "Three paths." : "Your paths."} One deadline.</h1>
+        </div>
+        <span className="notice" style={{ fontSize: 15 }}>Checked against your EAD end, {data.profile.eadEndDate}</span>
+      </div>
 
-      <div className="grid grid-3" style={{ marginBottom: 18 }}>
+      <div className="grid grid-3" style={{ marginBottom: 20 }}>
         {data.paths.map((path) => {
           const evaluation = evaluatePath(path, data.profile);
+          const leads = bestFeasible?.path.id === path.id;
           return (
             <button
               key={path.id}
-              className={`card path-card ${selectedId === path.id ? "selected" : ""}`}
-              style={{ textAlign: "left", color: "inherit" }}
+              className={`pathcol ${leads ? "leads" : ""} ${evaluation.feasible ? "" : "blocked"} ${selectedId === path.id ? "selected" : ""}`}
               onClick={() => setSelectedId(path.id)}
             >
-              <div className="card-head">
-                <h3>{path.name}</h3>
+              <div className="pathcol-top">
+                {leads ? <span className="chip solid">Leads</span> : <span />}
                 <Status tone={evaluation.feasible ? "good" : "bad"}>{evaluation.feasible ? "Feasible" : "Blocked"}</Status>
               </div>
-              <p className="lead" style={{ fontSize: 12, minHeight: 58 }}>{path.description}</p>
-              <div style={{ marginTop: 18 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span className="notice">Authorized runway</span>
-                  <strong style={{ fontSize: 12 }}>{path.runwayMonths.toFixed(1)} months</strong>
-                </div>
-                <Progress value={(path.runwayMonths / 8) * 100} warning={!evaluation.feasible} />
-              </div>
+              <h2>{path.name}</h2>
+              <p>{path.description}</p>
+              <div className="pathcol-num"><b>{path.runwayMonths.toFixed(1)}</b><span> months of runway</span></div>
+              <ul>
+                {evaluation.checks.map((check) => (
+                  <li key={check.label} className={check.pass ? "" : "fail"}>
+                    <i>{check.pass ? "✓" : "✕"}</i>
+                    <span>{check.label}<small>{check.detail}</small></span>
+                  </li>
+                ))}
+              </ul>
             </button>
           );
         })}
       </div>
 
-      <div className="grid grid-2">
-        <section className="card">
-          <div className="card-head">
-            <div><div className="eyebrow">Rule engine</div><h2 style={{ marginTop: 4 }}>{selected.name}</h2></div>
-            <Status tone={result.feasible ? "good" : "bad"}>{result.feasible ? "4 / 4 clear" : `${result.checks.filter((c) => c.pass).length} / 4 clear`}</Status>
-          </div>
-          {result.checks.map((check) => (
-            <div className="constraint" key={check.label}>
-              <span className={`constraint-mark ${check.pass ? "" : "fail"}`}>{check.pass ? "✓" : "×"}</span>
-              <div>
-                <strong style={{ fontSize: 13 }}>{check.label}</strong>
-                <p className="notice" style={{ margin: "3px 0 0" }}>{check.detail}</p>
-              </div>
-            </div>
-          ))}
-        </section>
-
-        <section className="card dark">
-          <div className="card-head">
-            <div><div className="eyebrow" style={{ color: "var(--lime)" }}>Coordinator explanation</div><h2 style={{ marginTop: 4 }}>Why this result?</h2></div>
-            <Status>Grounded</Status>
-          </div>
-          <p className="brief">{result.recommendation}</p>
-          <div className="source">Inputs used: EAD end {data.profile.eadEndDate}; path start {selected.startDate}; {selected.weeklyHours} weekly hours; E-Verify and employer-relationship toggles from the scenario.</div>
-        </section>
-      </div>
+      <section className="card dark whycard">
+        <div>
+          <div className="eyebrow" style={{ color: "#fff" }}>Why this result: {selected.name}</div>
+          <p className="brief" style={{ margin: "8px 0 0" }}>{result.recommendation}</p>
+        </div>
+        <div className="source" style={{ border: 0, padding: 0 }}>Inputs used: EAD end {data.profile.eadEndDate}; path start {selected.startDate}; {selected.weeklyHours} weekly hours; E-Verify and employer-relationship toggles from the scenario.</div>
+      </section>
 
       <div className="alert" style={{ marginTop: 18 }}>
         <strong>Explainable by design</strong>
