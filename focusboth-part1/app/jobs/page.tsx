@@ -3,8 +3,8 @@
 import { FormEvent, useMemo, useState } from "react";
 import { SuggestedOpeningsTable } from "@/components/suggested-openings";
 import { useCompassStore } from "@/components/compass-store";
-import { PageHead, Progress, Status } from "@/components/ui";
-import { applyDestination, jobPassesConstraints } from "@/lib/compass-engine";
+import { Progress, Status } from "@/components/ui";
+import { applyDestination, jobFailures, jobPassesConstraints } from "@/lib/compass-engine";
 import type { SponsorSignal } from "@/lib/sponsorship";
 import type { Job, JobStatus, Opening } from "@/lib/types";
 
@@ -137,19 +137,41 @@ export default function JobsPage() {
 
   return (
     <div className="content">
-      <PageHead
-        eyebrow="Job hunt"
-        title="Rank opportunities, not job boards."
-        description="Live postings from public company job boards. Apply opens that exact posting; FocusBoth never submits the form for you."
-        action={<button className="btn primary" onClick={() => setEditing(blankJob())}>Add application</button>}
-      />
+      <section className="hero jobs-hero">
+        <div className="eyebrow">Job hunt</div>
+        <h1>Jobs that can sponsor you.</h1>
+        <p className="lead">Live postings from public company job boards, each with the employer&apos;s real H-1B record. Apply opens that exact posting; FocusBoth never submits the form for you.</p>
+      </section>
 
       <SuggestedOpeningsTable
         trackedKeys={trackedKeys}
         onApply={(opening) => openApply(openingToJob(opening), { trackFirst: true })}
         onTrack={(opening) => addJob(openingToJob(opening))}
+        middle={
+          <div className="appstrip">
+            <div className="appstrip-head">
+              <strong>My applications</strong>
+              <span>{data.jobs.length} tracked</span>
+              <button className="btn primary" onClick={() => setEditing(blankJob())}>Add application</button>
+            </div>
+            {data.jobs.slice(0, 4).map((job) => {
+              const fails = jobFailures(job, data.profile);
+              const reason = fails[0]?.startsWith("starts") ? "Starts after your EAD ends" : fails[0]?.replace(" (DOL)", "");
+              return (
+                <button className={`appcard ${fails.length ? "fail" : "pass"}`} key={job.id} onClick={() => setEditing(job)}>
+                  <span>
+                    <b>{job.company}</b>
+                    <small>{reason ? reason.charAt(0).toUpperCase() + reason.slice(1) : job.role}</small>
+                  </span>
+                  <em>{job.status}</em>
+                </button>
+              );
+            })}
+          </div>
+        }
       />
 
+      <h2 style={{ margin: "28px 0 14px" }}>All tracked applications</h2>
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="card-head">
           <div className="filter-row">
