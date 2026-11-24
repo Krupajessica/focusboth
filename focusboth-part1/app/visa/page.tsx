@@ -2,8 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { useCompassStore } from "@/components/compass-store";
-import { MetricCard, PageHead, Progress, Status } from "@/components/ui";
-import { daysUntil, unemploymentAllowance } from "@/lib/compass-engine";
+import { Status } from "@/components/ui";
+import { daysBetween, daysUntil, unemploymentAllowance } from "@/lib/compass-engine";
 import type { VisaProfile } from "@/lib/types";
 
 export default function VisaPage() {
@@ -19,60 +19,91 @@ export default function VisaPage() {
     window.setTimeout(() => setSaved(false), 2200);
   }
 
-  const milestones = [
-    ["Program end", data.profile.programEndDate, "Your academic program completion date"],
-    ["EAD begins", data.profile.eadStartDate, "Employment authorization starts"],
-    ["Next report", data.profile.nextReportingDate, "Confirm requirement with your DSO"],
-    ["EAD ends", data.profile.eadEndDate, "Hard boundary used by path checks"],
-  ];
+  const p = data.profile;
+  const fmt = (iso: string) => {
+    const d = new Date(`${iso}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? "Not set" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+  const span = Math.max(1, daysBetween(p.programEndDate, p.eadEndDate));
+  const at = (iso: string) => {
+    const n = daysBetween(p.programEndDate, iso);
+    return Number.isFinite(n) ? Math.max(0, Math.min(100, (n / span) * 100)) : null;
+  };
+  const todayPct = at(new Date().toISOString().slice(0, 10)) ?? 0;
+  const reportPct = at(p.nextReportingDate);
+  const runway = daysUntil(p.eadEndDate);
+  const eadTotal = Math.max(1, daysBetween(p.eadStartDate, p.eadEndDate));
+  const eadUsedPct = Math.max(0, Math.min(100, Math.round(((eadTotal - runway) / eadTotal) * 100)));
+  const reportIn = daysBetween(new Date(), p.nextReportingDate);
+  const reportSet = Number.isFinite(reportIn);
+  const reportDue = reportSet && reportIn <= 0;
+  const usedPct = Math.min(100, (p.unemploymentDaysUsed / allowance.cap) * 100);
 
   return (
     <div className="content">
-      <PageHead
-        eyebrow="Visa clock"
-        title="Know the dates. Protect the runway."
-        description="A single place to record dates and expose conflicts before they become urgent."
-        action={<Status tone="warn">Informational only</Status>}
-      />
-
-      <div className="grid grid-3" style={{ marginBottom: 18 }}>
-        <MetricCard label="EAD runway" value={`${daysUntil(data.profile.eadEndDate)} days`} note={`Until ${data.profile.eadEndDate}`} />
-        <MetricCard
-          label="Unemployment remaining"
-          value={`${allowance.remaining} days`}
-          note={`${data.profile.unemploymentDaysUsed} used out of ${allowance.cap}`}
-          tone={allowance.remaining < 45 ? "warn" : "good"}
-        />
-        <MetricCard label="Next reporting event" value={`${daysUntil(data.profile.nextReportingDate)} days`} note={data.profile.nextReportingDate} />
+      <div className="visa-head">
+        <div>
+          <div className="eyebrow">Visa clock</div>
+          <h1>Know the dates.<br />Protect the runway.</h1>
+        </div>
+        <div className="visa-count">
+          <b>{runway}</b>
+          <span>days of work permit left</span>
+        </div>
       </div>
 
-      <div className="alert" style={{ marginBottom: 18 }}>
+      <section className="card journey">
+        <div className="jbar">
+          <div className="jfill" style={{ width: `${todayPct}%` }} />
+          <i className="jdot" style={{ left: 0 }} />
+          <i className="jdot white" style={{ left: `${at(p.eadStartDate) ?? 0}%` }} />
+          {reportPct !== null && <i className="jdot amber" style={{ left: `${reportPct}%` }} />}
+          <i className="jdot end" style={{ left: "100%" }} />
+          <div className="jtoday" style={{ left: `${todayPct}%` }}><span>Today</span><i /></div>
+        </div>
+        <div className="jlabels">
+          <div><b>Program end</b>{fmt(p.programEndDate)}</div>
+          <div><b>EAD begins</b>{fmt(p.eadStartDate)}</div>
+          <div className={reportDue ? "amber" : ""}><b>Report to DSO</b>{fmt(p.nextReportingDate)}</div>
+          <div><b>EAD ends</b>{fmt(p.eadEndDate)}</div>
+        </div>
+      </section>
+
+      <div className="grid grid-3" style={{ marginBottom: 20 }}>
+        <div className="tile vivid stat">
+          <span className="tile-label">Work permit used</span>
+          <div className="huge">{eadUsedPct}%</div>
+          <span className="tile-foot">{fmt(p.eadStartDate)} to {fmt(p.eadEndDate)}</span>
+        </div>
+        <div className="tile glass stat">
+          <span className="tile-label">Unemployment days left</span>
+          <div className="huge">{allowance.remaining}</div>
+          <div>
+            <div className={`progress ${allowance.remaining < 45 ? "warn" : ""}`}><span style={{ width: `${usedPct}%` }} /></div>
+            <span className="tile-foot" style={{ display: "block", marginTop: 8 }}>{p.unemploymentDaysUsed} of {allowance.cap} used</span>
+          </div>
+        </div>
+        <div className={`tile stat ${reportDue || !reportSet ? "warnbox" : "glass"}`}>
+          <span className="tile-label">Next report to your DSO</span>
+          <div className="huge">{!reportSet ? "Not set" : reportDue ? "Due" : `${reportIn} days`}</div>
+          <span className="tile-foot">
+            {!reportSet
+              ? "Add your next reporting date below."
+              : reportDue
+                ? `Reporting date was ${fmt(p.nextReportingDate)}. Confirm with your DSO, then enter the next date.`
+                : `On ${fmt(p.nextReportingDate)}`}
+          </span>
+        </div>
+      </div>
+
+      <div className="alert" style={{ marginBottom: 20 }}>
         <strong>Boundary</strong>
         <span>FocusBoth does not determine status, eligibility or compliance. Use this planner to prepare questions, then verify them with your DSO or qualified attorney.</span>
       </div>
 
-      <div className="grid grid-2">
-        <section className="card">
-          <div className="card-head"><h2>Your timeline</h2><span className="status">4 milestones</span></div>
-          <div className="timeline">
-            {milestones.map(([label, date, note]) => (
-              <div className="timeline-item" key={label}>
-                <strong>{label} · {date}</strong>
-                <p>{note}</p>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 22 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <span className="notice">Unemployment allowance used</span>
-              <strong style={{ fontSize: 12 }}>{Math.round((data.profile.unemploymentDaysUsed / allowance.cap) * 100)}%</strong>
-            </div>
-            <Progress value={(data.profile.unemploymentDaysUsed / allowance.cap) * 100} warning />
-          </div>
-        </section>
-
+      <div>
         <form className="card" onSubmit={submit}>
-          <div className="card-head"><h2>Edit student record</h2>{saved && <Status>Saved locally</Status>}</div>
+          <div className="card-head"><h2>Edit my dates</h2>{saved && <Status>Saved locally</Status>}</div>
           <div className="form-grid">
             <div className="field span-2">
               <label htmlFor="studentName">Student name</label>
