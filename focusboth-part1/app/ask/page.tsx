@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useCompassStore } from "@/components/compass-store";
-import { PageHead, Status } from "@/components/ui";
+import { Status } from "@/components/ui";
 import type { AgentResult } from "@/lib/agent";
 
 const EXAMPLES = [
@@ -42,62 +42,76 @@ export default function AskPage() {
     }
   }
 
+  /** Bold (**text**) and source tags ([S1]) rendered as real elements instead of raw symbols. */
+  function renderAnswer(result: AgentResult) {
+    const order = new Map(result.citations.map((c, i) => [c.tag, i + 1]));
+    return result.answer.split(/(\*\*[^*]+\*\*|\[S\d+\])/g).map((part, i) => {
+      if (part.startsWith("**")) return <b key={i}>{part.slice(2, -2)}</b>;
+      const tag = /^\[(S\d+)\]$/.exec(part)?.[1];
+      if (tag) return order.has(tag) ? <sup className="cite" key={i}>{order.get(tag)}</sup> : null;
+      return part;
+    });
+  }
+
   return (
     <div className="content">
-      <PageHead
-        eyebrow="Ask FocusBoth"
-        title="Answers with sources, not guesses."
-        description="An AI assistant that answers OPT and STEM OPT questions only from official USCIS pages and 8 CFR 214.2, and uses FocusBoth's own data and rules for your dates and employers."
-      />
-
-      <section className="card" style={{ marginBottom: 18 }}>
-        <form onSubmit={(e: FormEvent) => { e.preventDefault(); void ask(question); }} className="actions" style={{ alignItems: "stretch" }}>
-          <input className="input" style={{ flex: 1, minWidth: 220 }} placeholder="Ask about OPT, STEM OPT, an employer, or your tracked jobs…"
-            value={question} maxLength={600} onChange={(e) => setQuestion(e.target.value)} aria-label="Your question" />
-          <button className="btn primary" type="submit" disabled={busy || !question.trim()}>{busy ? "Thinking…" : "Ask"}</button>
-        </form>
-        <div className="filter-row" style={{ marginTop: 12 }}>
-          {EXAMPLES.map((q) => (
-            <button key={q} type="button" className="filter" disabled={busy} onClick={() => void ask(q)}>{q}</button>
-          ))}
-        </div>
-        <p className="notice" style={{ marginTop: 10 }}>
-          Not legal advice. FocusBoth never predicts visa outcomes; confirm anything about your own case with your DSO. In a crisis in the U.S., call or text 988.
-        </p>
+      <section className="hero jobs-hero">
+        <div className="eyebrow">Ask FocusBoth</div>
+        <h1>Answers with sources, not guesses.</h1>
+        <p className="lead">Answers OPT and STEM OPT questions only from official USCIS pages and 8 CFR 214.2, and uses FocusBoth&apos;s own data and rules for your dates and employers.</p>
       </section>
 
+      <form className="searchbar" onSubmit={(e: FormEvent) => { e.preventDefault(); void ask(question); }}>
+        <input placeholder="Ask about OPT, STEM OPT, an employer, or your tracked jobs…"
+          value={question} maxLength={600} onChange={(e) => setQuestion(e.target.value)} aria-label="Your question" />
+        <button className="btn primary" type="submit" disabled={busy || !question.trim()}>{busy ? "Thinking…" : "Ask"}</button>
+      </form>
+      <div className="filter-row search-filters" style={{ marginBottom: 10 }}>
+        {EXAMPLES.map((q) => (
+          <button key={q} type="button" className="filter" disabled={busy} onClick={() => void ask(q)}>{q}</button>
+        ))}
+      </div>
+      <p className="notice" style={{ textAlign: "center", marginBottom: 26 }}>
+        Not legal advice. FocusBoth never predicts visa outcomes; confirm anything about your own case with your DSO. In a crisis in the U.S., call or text 988.
+      </p>
+
       {turns.map((t, i) => (
-        <section className="card" key={`${t.question}-${turns.length - i}`} style={{ marginBottom: 14 }}>
-          <div className="eyebrow">You asked</div>
-          <h3 style={{ margin: "4px 0 12px" }}>{t.question}</h3>
-          {!t.result && !t.error && <p className="notice">Searching official sources and FocusBoth data…</p>}
-          {t.error && <div className="alert"><strong>Unavailable</strong><span>{t.error}</span></div>}
-          {t.result && (
-            <>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                <Status tone={t.result.grounded ? "good" : "warn"}>{t.result.grounded ? "Cited official sources" : "No policy citation"}</Status>
+        <section className="askturn" key={`${t.question}-${turns.length - i}`}>
+          <article className="card dark askanswer">
+            <div className="eyebrow" style={{ color: "#fff" }}>You asked</div>
+            <h2>{t.question}</h2>
+            {!t.result && !t.error && <p className="brief thinking">Searching official sources and FocusBoth data…</p>}
+            {t.error && <div className="alert"><strong>Unavailable</strong><span>{t.error}</span></div>}
+            {t.result && <p className="answer">{renderAnswer(t.result)}</p>}
+          </article>
+          <div className="askside">
+            <article className="card">
+              <div className="card-head" style={{ marginBottom: 12 }}>
+                <h3>Where this comes from</h3>
+                {t.result && <Status tone={t.result.grounded ? "good" : "warn"}>{t.result.grounded ? "Cited official sources" : "No policy citation"}</Status>}
               </div>
-              <p className="answer">{t.result.answer}</p>
-              {t.result.citations.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <div className="eyebrow">Sources</div>
-                  <ul className="notice" style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                    {t.result.citations.map((c) => (
-                      <li key={c.tag}><strong>[{c.tag}]</strong> <a href={c.url} target="_blank" rel="noopener noreferrer">{c.title}</a></li>
-                    ))}
-                  </ul>
+              {t.result && t.result.citations.length > 0 ? (
+                <div className="srclist">
+                  {t.result.citations.map((c, k) => (
+                    <a key={c.tag} href={c.url} target="_blank" rel="noopener noreferrer"><sup className="cite">{k + 1}</sup><span>{c.title}</span></a>
+                  ))}
                 </div>
+              ) : (
+                <p className="notice" style={{ margin: 0 }}>{t.result ? "This answer used FocusBoth's own data or rules, not a policy passage." : "Sources appear here with the answer."}</p>
               )}
-              {t.result.tools.length > 0 && (
-                <details style={{ marginTop: 12 }}>
-                  <summary className="notice">How this answer was built ({t.result.tools.length} tool call{t.result.tools.length > 1 ? "s" : ""}, {t.result.model})</summary>
-                  <ol className="notice" style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                    {t.result.tools.map((tool, k) => <li key={k}><code>{tool.name}</code>: {tool.summary}</li>)}
-                  </ol>
-                </details>
+            </article>
+            <article className="card">
+              <h3 style={{ marginBottom: 12 }}>How it was answered</h3>
+              {t.result && t.result.tools.length > 0 ? (
+                <ol className="steplist">
+                  {t.result.tools.map((tool, k) => <li key={k}><i>{k + 1}</i><span><code>{tool.name}</code>: {tool.summary}</span></li>)}
+                  <li><i>{t.result.tools.length + 1}</i><span>Answer written only from those results; every source tag checked. Model: {t.result.model}</span></li>
+                </ol>
+              ) : (
+                <p className="notice" style={{ margin: 0 }}>{t.result ? "No tool was needed for this reply." : "The steps appear here with the answer."}</p>
               )}
-            </>
-          )}
+            </article>
+          </div>
         </section>
       ))}
     </div>
