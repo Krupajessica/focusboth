@@ -28,20 +28,21 @@ function sponsorCell(opening: Opening) {
   const s = opening.sponsor;
   if (!s) {
     return (
-      <>
-        <Status tone="bad">No filings found</Status>
-        <small>0 H-1B LCAs on record</small>
-      </>
+      <div className="sponsorcell">
+        <div className="progress"><span style={{ width: "0%" }} /></div>
+        <strong className="bad">0 filings</strong>
+        <small>No H-1B LCAs on record</small>
+      </div>
     );
   }
-  const tone = s.score === null ? "warn" : s.score >= 60 ? "good" : "warn";
   return (
-    <>
-      <Status tone={tone}>{s.score === null ? "n/a" : `${s.score}/100`}</Status>
+    <div className="sponsorcell">
+      <div className={`progress ${s.score !== null && s.score < 60 ? "warn" : ""}`}><span style={{ width: `${s.score ?? 0}%` }} /></div>
+      <strong>{s.filings.toLocaleString()} filings</strong>
       <small>
-        {s.filings.toLocaleString()} LCAs · {s.newHireFilings.toLocaleString()} new-hire · {s.quarters}
+        Score {s.score === null ? "n/a" : `${s.score}/100`} · {s.newHireFilings.toLocaleString()} new-hire · {s.quarters}
       </small>
-    </>
+    </div>
   );
 }
 
@@ -49,7 +50,10 @@ export function SuggestedOpeningsTable({
   trackedKeys,
   onApply,
   onTrack,
+  middle,
 }: {
+  /** Rendered between the search controls and the results (the tracked-applications strip). */
+  middle?: React.ReactNode;
   trackedKeys: Set<string>;
   onApply: (opening: Opening) => void;
   onTrack: (opening: Opening) => void;
@@ -163,19 +167,40 @@ export function SuggestedOpeningsTable({
   }
 
   return (
-    <section className="card" style={{ marginBottom: 18 }}>
-      <div className="card-head">
-        <div>
-          <div className="eyebrow">Live openings</div>
-          <h2 style={{ marginTop: 4 }}>Search every posting, newest first</h2>
-        </div>
-        <span className="notice">
-          {loading
-            ? "Loading public job boards…"
-            : `${filtered.length.toLocaleString()} matching · ${openings.length.toLocaleString()} live${fetchedAt ? ` · refreshed ${formatRelativeTime(fetchedAt)}` : ""}`}
+    <>
+      <div className="searchbar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+        <input id="roleSearch" aria-label="Search by role" placeholder="Search by role: data engineer, analyst, intern…" value={roleQuery} onChange={(e) => changeFilter(setRoleQuery, e.target.value)} />
+        <span className="searchcount">
+          {loading ? "Loading job boards…" : `${filtered.length.toLocaleString()} of ${openings.length.toLocaleString()} live`}
         </span>
       </div>
 
+      <div className="filter-row search-filters">
+        {(["All", "Full-time", "Internship"] as const).map((item) => (
+          <button className={`filter ${workType === item ? "active" : ""}`} key={item} onClick={() => changeFilter(setWorkType, item)}>
+            {item === "All" ? "All types" : item}
+          </button>
+        ))}
+        <button className={`filter ${usOnly ? "active" : ""}`} onClick={() => changeFilter(setUsOnly, !usOnly)}>
+          United States only
+        </button>
+        <select id="postedWindow" aria-label="Posted within" className="filter" value={postedHours} onChange={(e) => changeFilter(setPostedHours, Number(e.target.value))}>
+          {POSTED_WINDOWS.map((item) => <option key={item.hours} value={item.hours}>Posted: {item.label.toLowerCase()}</option>)}
+        </select>
+        <select id="companyTab" aria-label="Employer" className="filter" value={company} onChange={(e) => changeFilter(setCompany, e.target.value)}>
+          {companies.map((item) => <option key={item}>{item}</option>)}
+        </select>
+        <input id="locationSearch" aria-label="Location" className="filter" placeholder="Location: Seattle, remote…" value={locationQuery} onChange={(e) => changeFilter(setLocationQuery, e.target.value)} />
+        <label className="filter payfilter" htmlFor="minSalary" title="Employers are not required to publish pay. Setting a minimum hides roles with no published range.">
+          {minSalary ? `Pay from $${Math.round(minSalary / 1000)}k` : "Any pay"}
+          <input id="minSalary" type="range" min={0} max={300000} step={10000} value={minSalary} onChange={(e) => changeFilter(setMinSalary, Number(e.target.value))} />
+        </label>
+      </div>
+
+      {middle}
+
+    <section className="card" style={{ marginBottom: 18 }}>
       {error && (
         <div className="alert" style={{ marginBottom: 14 }}>
           <strong>Feed unavailable</strong>
@@ -183,45 +208,6 @@ export function SuggestedOpeningsTable({
           <button className="btn secondary" onClick={() => setReloadKey((key) => key + 1)}>Retry</button>
         </div>
       )}
-
-      <div className="filter-row" style={{ marginBottom: 12 }}>
-        {(["All", "Full-time", "Internship"] as const).map((item) => (
-          <button className={`filter ${workType === item ? "active" : ""}`} key={item} onClick={() => changeFilter(setWorkType, item)}>
-            {item}
-          </button>
-        ))}
-        <button className={`filter ${usOnly ? "active" : ""}`} onClick={() => changeFilter(setUsOnly, !usOnly)}>
-          United States only
-        </button>
-      </div>
-
-      <div className="form-grid" style={{ marginBottom: 14 }}>
-        <div className="field">
-          <label htmlFor="postedWindow">Posted within</label>
-          <select id="postedWindow" className="input" value={postedHours} onChange={(e) => changeFilter(setPostedHours, Number(e.target.value))}>
-            {POSTED_WINDOWS.map((item) => <option key={item.hours} value={item.hours}>{item.label}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="companyTab">Employer</label>
-          <select id="companyTab" className="input" value={company} onChange={(e) => changeFilter(setCompany, e.target.value)}>
-            {companies.map((item) => <option key={item}>{item}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="locationSearch">Location</label>
-          <input id="locationSearch" className="input" placeholder="Seattle, remote, TX…" value={locationQuery} onChange={(e) => changeFilter(setLocationQuery, e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="roleSearch">Role</label>
-          <input id="roleSearch" className="input" placeholder="Data engineer, intern…" value={roleQuery} onChange={(e) => changeFilter(setRoleQuery, e.target.value)} />
-        </div>
-        <div className="field span-2">
-          <label htmlFor="minSalary">Minimum advertised pay: {minSalary ? `$${minSalary.toLocaleString()}/yr` : "no minimum"}</label>
-          <input id="minSalary" type="range" min={0} max={300000} step={10000} value={minSalary} onChange={(e) => changeFilter(setMinSalary, Number(e.target.value))} />
-          <span className="notice">Employers are not required to publish pay. Setting a minimum hides roles with no published range.</span>
-        </div>
-      </div>
 
       <div className="card-head" style={{ marginBottom: 10 }}>
         <div className="actions">
@@ -259,7 +245,7 @@ export function SuggestedOpeningsTable({
               <th>Type</th>
               <th>Posted</th>
               <th>Advertised pay</th>
-              <th title="U.S. DOL LCA filings and model probability of a new-hire H-1B filing next quarter">H-1B record (DOL)</th>
+              <th title="U.S. DOL LCA filings and model probability of a new-hire H-1B filing next quarter">H-1B sponsor record (DOL)</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -301,5 +287,6 @@ export function SuggestedOpeningsTable({
         )}
       </div>
     </section>
+    </>
   );
 }
